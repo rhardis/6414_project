@@ -56,6 +56,8 @@ Tasks
 Data Cleaning ------ Subset data frame by columns
 
 
+MLR HW TASKS
+
 Question 1: Exploratory Data Analysis [6 points]
 (a) Create a boxplot of the qualitative predictor and the response. Does there appear to be a relationship between the predictor and the response?  Interpret the boxplot.
 
