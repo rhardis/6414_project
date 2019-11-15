@@ -1,0 +1,105 @@
+---
+title: "6414 RMarkdown"
+author: "James Will Trawick"
+date: "11/15/2019"
+output: word_document
+---
+
+Process:
+
+1) Write Down Task
+2) Insert R Script and write code 
+3) Document Code
+
+Example:
+
+Task 1:  Fit Simple Linear Model
+
+```{r}
+
+
+#Set Working Directory
+setwd("C:/Users/james/Desktop")
+
+#Read Data
+OriginalData = read.csv("WineDataFull.csv", header = TRUE)
+df = as.data.frame(OriginalData)
+
+#fit Linear Model 
+model1 = lm(points ~ log(price), data = df)
+summary(model1)
+
+attach(df)
+plot(log(df$price), df$points)
+
+```
+
+
+
+
+
+Rich - pulling last couple of columns and will send data with 100ish rows with all columns not subsetted
+
+
+--impute/delete
+--subset based on atleast 40 observations per 
+
+
+```{r}
+columns = c("country")
+```
+
+
+
+Tasks
+
+Data Cleaning ------ Subset data frame by columns
+
+
+MLR HW TASKS - This is new text. 
+
+Question 1: Exploratory Data Analysis [6 points]
+(a) Create a boxplot of the qualitative predictor and the response. Does there appear to be a relationship between the predictor and the response?  Interpret the boxplot.
+
+(b) Create a scatterplot matrix containing the quantitative predictors and the response, and display the correlations between each pair of variables. Interpret the correlations.
+
+(c) Is it reasonable to use a multiple linear regression model to predict  Rings using all the predictor variables?
+
+ 
+
+Question 2: Fitting the Multiple Linear Regression Model [14 points]
+Build a linear regression model, model1, to predict Rings using all the predictors. Display the model1 summary.
+
+(a) What is the coefficient estimate for Height? Interpret this coefficient.
+
+(b) What is the coefficient estimate for the Sex category Infant? Interpret this coefficient.
+
+(c) What is the coefficient estimate for the Sex category Male? Interpret this coefficient
+
+(d) Give a 90% confidence interval for Length. Interpret this interval.
+
+ 
+
+Question 3: Checking Model Assumptions [20 points]
+(a) Create a scatterplot of the standardized residuals versus fitted values. What conclusions can you draw from this plot?
+
+(b) Create a histogram and normal QQ plot for the residuals. What conclusions can you draw from these plots?
+
+(c) Create a plot for the Cook's Distances. What conclusions can you draw from this plot?
+
+(d) Display the VIF of each predictor. What conclusions can you draw?
+
+ 
+
+Question 4:  Model Comparison and Prediction [20 points]
+
+Create a second model, model2, that uses all the predictors except for: Whole weight, Viscera weight, and Length. Display the model summary.
+
+(a) Compare and discuss the R-squared and Adjusted R-squared of model2 with model1.
+
+(b) Conduct a partial F-test comparing model2  with model1. What can you conclude?
+
+(c) Predict Rings for the last 11 rows of data (i.e. dataTest) using both model2 and model1.  Compare and discuss the point prediction and intervals of both models.  Compare and discuss the mean squared prediction error and the precision measure. 
+
+(d) Suppose you've found an adult female abalone with a diameter of 0.4mm, a height of 0.2mm, a shucked weight of 0.3 grams, and a shell weight of 0.3 grams. Using model2, predict the number of rings on this abalone with a 90% prediction interval. What is the age of this abalone?
+
