@@ -2,7 +2,9 @@
 title: "6414 RMarkdown"
 author: "James Will Trawick"
 date: "11/15/2019"
-output: word_document
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 Process:
@@ -19,10 +21,11 @@ Task 1:  Fit Simple Linear Model
 
 
 #Set Working Directory
-setwd("C:/Users/james/Desktop")
+#setwd("C:/Users/james/Desktop")
 
 #Read Data
-OriginalData = read.csv("WineDataFull.csv", header = TRUE)
+filename = "testwine.csv"
+OriginalData = read.csv(filename, header = TRUE)
 df = as.data.frame(OriginalData)
 
 #fit Linear Model 
@@ -35,9 +38,6 @@ plot(log(df$price), df$points)
 ```
 
 
-
-
-
 Rich - pulling last couple of columns and will send data with 100ish rows with all columns not subsetted
 
 
@@ -48,8 +48,6 @@ Rich - pulling last couple of columns and will send data with 100ish rows with a
 ```{r}
 columns = c("country")
 ```
-
-
 
 Tasks
 
@@ -67,22 +65,78 @@ Question 1: Exploratory Data Analysis [6 points]
 
  
 
-Question 2: Fitting the Multiple Linear Regression Model [14 points]
+Question 2: Fitting the Multiple Linear Regression Model
 Build a linear regression model, model1, to predict Rings using all the predictors. Display the model1 summary.
+
+```{r}
+deletemissing = function(df, columns){
+  return(df[complete.cases(df[ , columns]),])
+}
+
+#provide dataframe
+#provide columns to check for missing data
+#returns dataframe minus the rows where NA existed in columns provided 
+
+```
+
+```{r}
+#Build a full model first
+
+allColumns = c("country",	"description",	"designation",	"points",	"price",	"province",	"region_1",	"title",	"variety",	"winery",	"year",	"location",	"avg_temp",	"range_temp",	"stdv_temp",	"avg_precip",	"range_precip",	"stdv_precip",	"lat",	"lng",	"elevation",	"review_length",	"abv",	"bottle_size	category",	"importer")
+
+
+#All columns except description, designation, and location. Log(price) and log(points)
+#modelFull = lm(log(points) ~ country + province + log(price) + region_1 + variety + winery + year + avg_temp + range_temp + range_temp + stdv_temp + avg_precip + range_precip + stdv_precip + lat + lng + elevation + abv + bottle_size + category + importer, data = df)
+
+#Columns I think are meaninful (for discussion as a group)
+#modelFull = lm(log(points) ~ country + province + log(price) + region_1 + year + avg_precip + elevation + abv + bottle_size + category, data=df)
+
+#As a tester...log(price) gives NA in confint output
+modelFull = lm(log(points) ~ price + country, data = df)
+
+summary(modelFull)
+```
 
 (a) What is the coefficient estimate for Height? Interpret this coefficient.
 
+See summary output
+
 (b) What is the coefficient estimate for the Sex category Infant? Interpret this coefficient.
+
+See summary output
 
 (c) What is the coefficient estimate for the Sex category Male? Interpret this coefficient
 
+See summary output
+
 (d) Give a 90% confidence interval for Length. Interpret this interval.
 
- 
+```{r}
+conf90 = function(model, columnName) {
+  return(confint(model, columnName, level=.90))
+}
 
+# provide a model
+# provide column for which you want an interval
+# returns 90% confint for that variable
+
+#conf90(modelFull, "price")
+log(confint(modelFull, "price", level=.90))
+```
+
+ 
 Question 3: Checking Model Assumptions [20 points]
 (a) Create a scatterplot of the standardized residuals versus fitted values. What conclusions can you draw from this plot?
 
+```{r}
+library(car)
+resids = rstandard(modelFull)
+fits = modelFull$fitted
+cook = cooks.distance(modelFull)
+
+#pairs.panels(df, hist.col="#00AFBB", ellipses=FALSE, lm=TRUE)
+
+```
 (b) Create a histogram and normal QQ plot for the residuals. What conclusions can you draw from these plots?
 
 (c) Create a plot for the Cook's Distances. What conclusions can you draw from this plot?
