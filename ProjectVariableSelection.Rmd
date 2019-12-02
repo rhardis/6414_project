@@ -1,0 +1,266 @@
+---
+title: "ProjectVariableSelection"
+author: "James Will Trawick"
+date: "11/25/2019"
+output: html_document
+---
+
+##1) Load Data##
+
+```{r}
+
+#setwd("C:/Users/james/Desktop")
+data = read.csv("wines_1159_nonan.csv", header = TRUE, sep=",", stringsAsFactors = FALSE)
+#data
+```
+
+
+##2) Get rid of extraneous columns##
+
+```{r}
+cols = colnames(data)
+colssubset = c(2,5,6,12,14,22,24,25,26,27)
+cols = cols[colssubset]
+
+reduceddata = data[,cols]
+#reduceddata
+```
+
+##3) Train Test Split##
+
+```{r}
+
+fullData=na.omit(reduceddata)
+# year as factor
+fullData$year=as.factor(fullData$year)
+# age as factor
+#fullData$year=as.factor(2019 - fullData$year)
+RNGkind(sample.kind="Rounding")
+set.seed(190)
+testRows=sample(nrow(fullData),0.1*nrow(fullData))
+testData=fullData[testRows, ]
+trainData=fullData[-testRows, ]
+
+
+
+```
+
+##4) Fit a basic linear model##
+
+
+```{r}
+linearmodel1 = lm(points~., data = trainData)
+summary(linearmodel1)
+```
+
+##5) Clean up importer##
+
+```{r}
+
+
+
+for (i in 1:nrow(reduceddata)) {
+  if (reduceddata$importer[i] == "not_imported"){
+    reduceddata$importer[i] = 0
+  }
+  
+  else {
+    reduceddata$importer[i] = 1
+  }
+}
+
+```
+
+
+##6) Re-do Train-Test Split with new data##
+
+```{r}
+
+fullData=na.omit(reduceddata)
+
+set.seed(190)
+testRows=sample(nrow(fullData),0.1*nrow(fullData))
+testData=fullData[testRows, ]
+trainData=fullData[-testRows, ]
+
+
+
+```
+
+
+
+##7) fit model  again##
+
+```{r}
+
+linearmodel2 = lm(points~., data = trainData)
+summary(linearmodel2)
+
+```
+
+
+##8) avg_temp and importer collinear with something else so reduce data even further ##
+
+
+```{r}
+
+
+reduceddata = reduceddata[,-c(5,10)]
+
+
+#reduceddata
+fullData=na.omit(reduceddata)
+
+set.seed(190)
+testRows=sample(nrow(fullData),0.1*nrow(fullData))
+testData=fullData[testRows, ]
+trainData=fullData[-testRows, ]
+
+```
+
+
+##9) fit linear model with no outright multicollinearity##
+
+```{r}
+linearmodel3 = lm(points~., data = trainData)
+summary(linearmodel3)
+```
+
+##10) trying out poisson ---- our assumption is that points are a rate and the variables predict that rate and that the rate is poissonly distributed##
+
+```{r}
+poissonmodel1 = glm(points~., family = "poisson", data = trainData)
+summary(poissonmodel1)
+```
+
+##11) Significance or Predictive Power of Poisson GLM##
+```{r}
+1-pchisq((poissonmodel1$null.dev-poissonmodel1$deviance), (poissonmodel1$df.null - poissonmodel1$df.resid))
+```
+
+High p-value implies poor overall significance. Next, we check goodness of fit. 
+
+##12) Goodness of fit for Poisson GLM##
+
+```{r}
+# Deviance Residuals
+1 - pchisq(poissonmodel1$deviance, poissonmodel1$df.resid)
+
+# Pearson Residuals
+pResid <- resid(poissonmodel1, type="pearson")
+1 - pchisq(sum(pResid^2), poissonmodel1$df.residual)
+
+#Dispersion Parameter
+poissonmodel1$deviance/poissonmodel1$df.res
+```
+
+Deviance Residuals and Pearson Residuals offer high p-values, so we fail to reject that this is a good fitting model.
+
+Additionally, we have a dispersion parameter of less than 2, so we do not see any more variability than we would expect to see with a Poisson Regression. 
+
+##13) Diagnostics##
+
+```{r}
+
+
+```
+
+##14) Variable Selection - let poissonmodel1 be the full model. We begin to narrow down our variables included in the model using 3 types of variable selection: Forward Step, Lasso, and Elastic Net.##
+
+
+**14.1) Forward Step**
+```{r}
+minmod = glm(points ~ 1,family="poisson", data = trainData)
+#minmod = lm(points ~ 1, data = trainData)
+modPoissonForward = step(minmod, scope = list(lower=minmod, upper=poissonmodel1), direction="forward", trace=F)
+summary(modPoissonForward)
+```
+
+Using Forward Stepwise Regression, only price is selected to include in the model. 
+**This differs based on how we include year: as factor vs continuous.**
+
+**14.2) Lasso**
+
+```{r}
+library(glmnet)
+
+# Lasso Regression
+predictors=model.matrix(points ~., data=trainData)
+modPoissonLasso.cv = cv.glmnet(predictors, trainData$points, alpha=1, nfolds=10)
+modPoissonLasso = glmnet(predictors, trainData$points, alpha=1, nlambda=100)
+
+# Optimal Lambda for Lasso
+modPoissonLasso.cv$lambda.min
+
+# Plotting Regression Coefficient Path
+plot(modPoissonLasso, xvar="lambda", label=TRUE, lwd=2)
+abline(v=log(modPoissonLasso.cv$lambda.min), col='black', lty=2, lwd=2)
+
+# Selected Variables
+coef(modPoissonLasso, s=modPoissonLasso.cv$lambda.min)
+```
+
+**14.3) Elastic Net**
+
+```{r}
+# Elastic Net, putting equal weights on Ridge and Lasso
+modPoissonEN.cv = cv.glmnet(predictors, trainData$points, alpha=.5, nfolds=10)
+modPoissonEN=glmnet(predictors, trainData$points, alpha=.5, nlambda=100)
+
+# Plotting Regression Coefficient Path
+plot(modPoissonEN, xvar="lambda", label=TRUE, lwd=2)
+abline(v=log(modPoissonEN.cv$lambda.min), col='black', lty=2, lwd=2)
+
+# Optimal Lambda for Elastic Net
+modPoissonEN.cv$lambda.min
+
+# Selected Variables
+coef(modPoissonEN, s=modPoissonEN.cv$lambda.min)
+```
+
+##15) Comparing Models for Variable Selection##
+
+**Comparing AICs of Full Model and Model using Forward Step**
+
+
+```{r}
+library(CombMSC)
+
+#comp = rbind(Q1=c(summary(poissonmodel1)$adj.r.sq, Cp(poissonmodel1, S2=summary(poissonmodel1)$sigma^2), AIC(poissonmodel1, k=2)), Q2=c(summary(modPoissonForward)$adj.r.sq, Cp(modPoissonForward, S2=summary(modPoissonForward)$sigma^2), AIC(modPoissonForward, k=2)), Q3=c(summary(modPoissonLasso)$adj.r.sq, Cp(modPoissonLasso, S2=summary(modPoissonLasso)$sigma^2), AIC(modPoissonLasso, k=2)), Q4=c(summary(modPoissonEN)$adj.r.sq, Cp(modPoissonEN, S2=summary(modPoissonEN)$sigma^2), AIC(modPoissonEN, k=2)))
+
+comp = rbind(
+  FullModel=c(AIC(poissonmodel1, k=2)), 
+  ForwardStep=c(AIC(modPoissonForward, k=2))
+  )
+
+#summary(poissonmodel1)
+#summary(modPoissonForward)
+colnames(comp) = c("AIC")
+comp
+```
+
+
+**Comparing Full, Forward Step, Lasso, and Elastic Net Models**
+
+```{r}
+#head(testData)
+
+full_matrix = model.matrix(points~., data = fullData)
+test_matrix = full_matrix[testRows,]
+
+full=predict(poissonmodel1, testData)
+forward=predict(modPoissonForward, testData)
+lasso = predict(modPoissonLasso.cv, newx = test_matrix, s=modPoissonLasso.cv$lambda.min)
+elastic = predict(modPoissonEN.cv, newx = test_matrix, s=modPoissonEN.cv$lambda.min)
+
+##### I think scaling happens automatically with the uncommented code, so I don't need this. #####
+#Xtest.scl=scale(testData[,-3], center=attr(X.scaled, "scaled:center"), scale=attr(X.scaled, "scaled:scale"))
+#elastic = predict(modPoissonEN, Xtest,.scl, s=modPoissonEN.cv$lambda.min)
+
+# Predicting Points using each model
+preds=data.frame(points=testData$points, full, forward, lasso, elastic)
+preds
+
+# Comparing Predictions using mean squared prediction error (which one has the lowest/best MSPE)
+sapply(preds[,-1], function(x) {mean((x-testData$points)^2)})
+```
