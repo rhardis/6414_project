@@ -100,7 +100,7 @@ hist(review_length, main = "Histogram of Review Length", xlab = "Word Count", co
 
 ```{r}
 library(GGally)
-ggpairs(large_data[,c(-1,-4,-7)], progress = FALSE)
+#ggpairs(large_data[,c(-1,-4,-7)], progress = FALSE)
 ```
 
 ```{r}
@@ -110,33 +110,47 @@ ggpairs(small_data[,c(-1,-4,-10)], progress = FALSE)
   Cook's distance for each dataset is examined next.
   
 ```{r}
-model1 = lm(price~., data=small_data[,c(-1,-4,-10)])
+model1 = lm(points~., data=small_data[,c(-1,-4,-10)])
 cook = cooks.distance(model1)
 plot(cook, type="h", lwd=3, col="red", ylab = "Cook's Distance", main="Cook's Distance")
 sdcook = cbind(small_data, cook)
 sdcook2 = sdcook %>% filter(cook<.005)
-sdcook2 = sdcook2[,c(-1,-4,-10)]
-model2 = lm(price~.,data=sdcook2)
+sdcook2 = sdcook2[,c(-1,-4)]
+model2 = lm(points~.,data=sdcook2)
 cutoff = 4/(nrow(small_data))
 plot(model2, which=4, cook.levels=cutoff)
 print(cutoff)
+sdcook2
 ```
 
 ```{r}
-model3 = lm(price~., data=large_data[,c(-1,-4,-7)])
-cook = cooks.distance(model3)
-plot(cook, type="h", lwd=3, col="red", ylab = "Cook's Distance", main="Cook's Distance")
-ldcook = cbind(large_data, cook)
-ldcook2 = ldcook %>% filter(cook<.005)
-ldcook2 = ldcook2[,c(-1,-4,-10)]
-model4 = lm(price~.,data=ldcook2)
-cutoff = 4/(nrow(large_data))
-plot(model4, which=4, cook.levels=cutoff)
+#model3 = lm(points~., data=large_data[,c(-1,-4,-7)])
+#cook = cooks.distance(model3)
+#plot(cook, type="h", lwd=3, col="red", ylab = "Cook's Distance", main="Cook's Distance")
+#ldcook = cbind(large_data, cook)
+#ldcook2 = ldcook %>% filter(cook<.005)
+#ldcook2 = ldcook2[,c(-1,-4,-10)]
+#model4 = lm(points~.,data=ldcook2)
+#cutoff = 4/(nrow(large_data))
+#plot(model4, which=4, cook.levels=cutoff)
 ```
 
 ```{r}
-large_data = ldcook2
-small_data = sdcook2
+small_data = sdcook2[,c(-9)]
+fullData = small_data
+
+
+set.seed(190)
+testRows = sample(nrow(fullData),0.1*nrow(fullData))
+testData = fullData[testRows, ]
+trainData = fullData[-testRows, ]
+
+
+levels(trainData$importer)[levels(trainData$importer)=="not_imported"] = "0"
+levels(trainData$importer)[levels(trainData$importer)!="0"] = "1"
+levels(testData$importer)[levels(testData$importer)=="not_imported"] = "0"
+levels(testData$importer)[levels(testData$importer)!="0"] = "1"
+
 ```
 
 
@@ -166,11 +180,11 @@ There does appear to be a relationship between Category (Red, Rose, White) and P
 
 ```{r}
 
-p4 = ggplot(large_data, aes(x=importer, y=points)) + 
+p4 = ggplot(small_data, aes(x=importer, y=points)) + 
   geom_boxplot()+theme(text = element_text(size=11), axis.text.x = element_text(angle=90, hjust=1))
 
 
-plot_grid(p4, labels = 'Large', label_size = 10)
+plot_grid(p4, labels = 'Small', label_size = 10)
 ```
 
 
