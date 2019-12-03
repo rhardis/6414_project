@@ -144,6 +144,205 @@ small_data = sdcook2
 ***
 ### Model Approach 1: Multiple Linear Regression
   MLR with variable selection and metric analyses (r^2, adj. r^2, assumptions, etc.)
+  
+1) Exploratory Data Analysis
+
+a) Boxplot of the qualitiative predictors and the response. 
+
+```{r}
+
+p3 = ggplot(small_data, aes(x=category, y=points)) + 
+  geom_boxplot()+theme(text = element_text(size=11), axis.text.x = element_text(angle=90, hjust=1))
+p4 = ggplot(large_data, aes(x=category, y=points)) + 
+  geom_boxplot()+theme(text = element_text(size=11), axis.text.x = element_text(angle=90, hjust=1))
+
+
+plot_grid(p3, p4, labels = c('Small', 'Large'), label_size = 10)
+
+```
+
+There does appear to be a relationship between Category (Red, Rose, White) and Points. Red is associated with the largest amount of points, White is associated with the second most and rose is associated with the fewest amount of points. The first, second and third quartile values for Red are approximately 87, 88.5 and 91 respectively. The first, second and third quartile values for Rose are approximately 85, 87 and 88.5 respectively. The first, second and third quartile values for White are approximately 86, 88 and 90. 
+
+
+```{r}
+
+p4 = ggplot(large_data, aes(x=importer, y=points)) + 
+  geom_boxplot()+theme(text = element_text(size=11), axis.text.x = element_text(angle=90, hjust=1))
+
+
+plot_grid(p4, labels = 'Large', label_size = 10)
+```
+
+
+```{r}
+#levels(large_data$importer)[levels(large_data$importer)!="not_imported"] = "imported"
+```
+
+There does not appear to be a significant relationship between the imported predictor (imported yes or no) on points. However we will still keep this predictor as an a priori controlling factor, before variable selection. 
+
+b) Scatterplot matrix of the quantitative predictors 
+```{r}
+ggpairs(large_data[,c(-4,-5)], progress = FALSE)
+```
+
+c) Is the linear model reasonable?
+
+The linear model seems like a reasonable model so far. The quantitative predictor review length has a high (.538) correlation with the response, and the relationship appears linear. The quantitatve predictor price also has a high (.533) correlation with the response. The relationship is modeled well as a linear one, however the log transformation of price seems appropriate here:
+
+```{r}
+plot(large_data$points, log(large_data$price))
+cor(large_data$points, log(large_data$price))
+
+```
+
+
+2) Fitting an MLR Model
+
+
+```{r}
+mlrmodel1 = lm(points~log(price) + abv + category + importer + year + review_length, data = large_data)
+summary(mlrmodel1)
+```
+
+
+```{r}
+confint(mlrmodel1, level = .99)
+```
+```{r}
+confint(mlrmodel1, level = .95)
+```
+
+All predictors and the intercept are significantly non-zero at the 0.99 level except for ABV. ABV is significantly non zero at the 0.95 level.
+
+Rose and and not imported are significantly negative, when compared to their respevtive baselines (Red and imported). All other predictors are significantly positive, with White being significantly positive when compared to Red. 
+
+3) Checking Model Assumptions
+
+a) Scatterplot of the standardized residuals versus the fitted values and a QQ  Plot and Histogram of the residuals. 
+
+```{r}
+library(car)
+model1 = mlrmodel1
+resids = rstandard(model1)
+fits = model1$fitted
+
+
+par(mfrow =c(2,2))
+plot(fits, resids, xlab="Fitted Values", ylab="Residuals", main="Scatterplot")
+
+qqPlot(resids, ylab="Residuals", main = "QQ Plot")
+hist(resids, xlab="Residuals", main = "Histogram")
+```
+
+Constant Variance Assumption:  The constant variance assumption, as determined by the "Scatterplot" plot, holds somewhat well here. The variance is mostly uniform, except for at very low and very high fitted values. 
+
+Normality Assumption: The normality assumption, as determined by the "Histogram" and "QQ Plot" plots, holds very well here. 
+
+b) VIF for each predictor
+
+```{r}
+library(car)
+vif(model1)
+```
+VIF is given in the first column. All predictors in the model have a VIF lower than max(10,1/(1-Rsq))=max(10,1/(1-0.5092))=10 indicating multicollinearity is not present in our model.
+
+4) Model/Variable Selection
+
+
+a) Full Model MLR
+
+  i) Mallow's CP, AIC, and BIC
+  
+```{r}
+mod1 = model1
+library(CombMSC)
+n=nrow(large_data)
+fullmodelscores = data.frame("Mallows" = Cp(mod1,S2=summary(mod1)$sigma^2), "AIC" = AIC(mod1,k=2),"BIC" = AIC(mod1,k=log(n)))
+fullmodelscores
+
+```
+  
+
+b) Forward Stepwise MLR
+
+   i) Fitting Forward Stepwise
+   
+```{r}
+reducedmodel =lm(points~1,data=large_data)
+forwardmlr = step(reducedmodel, scope = list(lower=reducedmodel,upper=mod1), direction = "forward",trace=F)
+summary(forwardmlr)
+```
+    ii) i) Mallow's CP, AIC, and BIC
+    
+```{r}
+mod1 = forwardmlr
+library(CombMSC)
+n=nrow(large_data)
+forwardmodelscores = data.frame("Mallows" = Cp(mod1,S2=summary(mod1)$sigma^2), "AIC" = AIC(mod1,k=2),"BIC" = AIC(mod1,k=log(n)))
+forwardmodelscores
+```
+    
+
+c) Lasso MLR
+
+   i) Fitting a Lasso 
+   
+```{r}
+library(glmnet)
+
+predictors = model.matrix(points ~ ., data = large_data)
+
+response = data.matrix(large_data[, "points"])
+
+lassomodel.cv = cv.glmnet(predictors, response, alpha=1, nfolds=10)
+
+lassomodel = glmnet(predictors, response, alpha=1, nlambda = 100)
+
+lassomodel.cv$lambda.min
+
+coef(lassomodel,s=lassomodel.cv$lambda.min)
+
+
+
+```
+   
+  ii) Plotting Coefficient Path
+  
+```{r}
+plot(lassomodel,xvar="lambda",label=TRUE,lwd=2)
+abline(v=log(lassomodel.cv$lambda.min),col='black',lty = 2,lwd=2)
+```
+  
+
+ iii) Mallows, AIC, and BIC
+
+d) Elastic Net
+
+ i) Fitting an Elastic Net
+ 
+```{r}
+
+
+elasticmodel.cv = cv.glmnet(predictors, response, alpha=.5, nfolds=10)
+
+elasticmodel = glmnet(predictors, response, alpha=.5, nlambda = 100)
+
+elasticmodel.cv$lambda.min
+
+coef(elasticmodel,s=elasticmodel.cv$lambda.min)
+```
+ 
+ 
+ 
+ii) plotting the coefficient path
+
+
+```{r}
+plot(elasticmodel,xvar="lambda",label=TRUE,lwd=2)
+abline(v=log(elasticmodel.cv$lambda.min),col='black',lty = 2,lwd=2)
+```
+
+
 
 ### Model Approach 2: Poisson Regression
   Poisson model with variable selection and metric analyses (r^2, adj. r^2, GOF, assumptions, etc.)
