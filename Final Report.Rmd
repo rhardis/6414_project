@@ -104,39 +104,40 @@ ggpairs(large_data[,c(-1,-4,-7)], progress = FALSE)
 ```
 
 ```{r}
+library(GGally)
 ggpairs(small_data[,c(-1,-4,-10)], progress = FALSE)
 ```
 
   Cook's distance for each dataset is examined next.
   
 ```{r}
-model1 = lm(price~., data=small_data[,c(-1,-4,-10)])
+model1 = lm(points~., data=small_data[,c(-1,-4,-10)])
 cook = cooks.distance(model1)
 plot(cook, type="h", lwd=3, col="red", ylab = "Cook's Distance", main="Cook's Distance")
 sdcook = cbind(small_data, cook)
 sdcook2 = sdcook %>% filter(cook<.005)
 sdcook2 = sdcook2[,c(-1,-4,-10)]
-model2 = lm(price~.,data=sdcook2)
+model2 = lm(points~.,data=sdcook2)
 cutoff = 4/(nrow(small_data))
 plot(model2, which=4, cook.levels=cutoff)
 print(cutoff)
 ```
 
 ```{r}
-model3 = lm(price~., data=large_data[,c(-1,-4,-7)])
-cook = cooks.distance(model3)
-plot(cook, type="h", lwd=3, col="red", ylab = "Cook's Distance", main="Cook's Distance")
-ldcook = cbind(large_data, cook)
-ldcook2 = ldcook %>% filter(cook<.005)
-ldcook2 = ldcook2[,c(-1,-4,-10)]
-model4 = lm(price~.,data=ldcook2)
-cutoff = 4/(nrow(large_data))
-plot(model4, which=4, cook.levels=cutoff)
+#model3 = lm(points~., data=large_data[,c(-1,-4,-7)])
+#cook = cooks.distance(model3)
+#plot(cook, type="h", lwd=3, col="red", ylab = "Cook's Distance", main="Cook's Distance")
+#ldcook = cbind(large_data, cook)
+#ldcook2 = ldcook %>% filter(cook<.005)
+#ldcook2 = ldcook2[,c(-1,-4,-10)]
+#model4 = lm(points~.,data=ldcook2)
+#cutoff = 4/(nrow(large_data))
+#plot(model4, which=4, cook.levels=cutoff)
 ```
 
 ```{r}
-large_data = ldcook2
-small_data = sdcook2
+large_data = large_data[,c(-1,-4,-10)]
+small_data = sdcook2[,c(-8)]
 ```
 
 
